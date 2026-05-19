@@ -1,0 +1,25 @@
+# gcp-gmail 설정 파일
+# 이 파일은 사용자가 직접 편집합니다. skill이 임의로 수정하지 않습니다.
+
+# 다이제스트 대상 라벨 (Gmail에 보이는 정확한 이름)
+# 공백/슬래시가 들어가도 됩니다. 예: "Work/Urgent", "회사/보고"
+labels: ["gcp-no-reply", "gcp-no-reply-actionrequired"]
+  # - "INBOX"
+  # - "Work/Urgent"
+
+# Slack 발송 대상
+slack:
+  # 채널 ID (C0XXXXXXX) 또는 이름 (#general).
+  # 비어 있으면 skill이 실행 거부합니다.
+  channel: "C0AQV00LHSB"
+
+# 조회 범위
+# 조회 시작 시각은 state.json의 last_run_at 기반으로 자동 결정됩니다.
+# (첫 실행이거나 last_run_at이 7일 이상 지났으면 '오늘 자정 이후'로 fallback)
+max_threads_per_run: 30     # 한 번 실행에서 처리할 최대 thread 수
+
+# 요약 옵션
+summary:
+  language: "ko"            # ko / en
+  include_todo: true        # TODO 추출 포함 여부
+  max_summary_lines: 3
