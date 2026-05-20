@@ -192,6 +192,58 @@ mcp__claude_ai_Slack__slack_send_message
 - 본문에서 권한 이름·역할 이름·API 이름·SKU가 등장하면 한 번 이상 정확히 인용합니다.
 - 한국어 작성. 단, 식별자·고유명사는 영문 그대로.
 
+### 5.5. FinOps Agent mention (조건부)
+
+부모 + 요약 답글까지 발송한 thread에 대해, 다음 **두 조건 중 하나라도** 충족하면 **같은 thread에 추가 답글로 `@gcp-finops-agent` 검토 요청**을 보냅니다.
+
+**트리거 조건**
+
+- **(A) 영향받는 프로젝트가 본문에 명시됨** — Step 4.d에서 추출한 프로젝트 ID 목록이 비어있지 않은 경우 ("Your affected projects are listed below", "Affected projects:", "Project(s):", "The following projects are affected" 다음에 실제 프로젝트 ID/번호가 명시된 경우).
+- **(B) 가격·비용 관련 메일** — 다음 중 하나:
+  - Step 4.b에서 분류된 카테고리가 `Billing` 또는 `Quota / Limit`
+  - 본문 또는 제목에 다음 키워드 발견 (대소문자 무관):
+    - en: `price`, `billing`, `cost`, `rate`, `increase`, `credit`, `free tier`, `invoice`, `SKU`, `fee`, `charge`, `discount`, `pricing`
+    - ko: `가격`, `요금`, `청구`, `비용`, `단가`
+
+두 조건이 다 충족되지 않으면 **이 단계 스킵**. mention 댓글은 잡음 방지를 위해 명확한 신호가 있을 때만 보냅니다.
+
+단, 정보성(FYI) 메일이 키워드 우연 일치로만 매칭되면 호출하지 않음 — 본문이 실제 비용·청구 변경을 시사하는지 한 번 더 확인.
+
+**호출**
+
+부모 메시지의 `ts`(Step 5.A에서 받은 값)를 **다시** `thread_ts`로 전달해 같은 thread에 추가 답글로 발송. (요약 답글의 ts가 아니라 root 부모 ts를 사용 — Slack thread는 root 기준)
+
+```
+mcp__claude_ai_Slack__slack_send_message
+  channel: <config.slack.channel>
+  thread_ts: <Step 5.A의 부모 ts>
+  text: |
+    <@U0AP7558R70>
+
+    ❓ *FinOps 검토 요청*
+    • 트리거 사유: <"영향받는 프로젝트 명시" / "가격·비용 관련" / 둘 다 — 어떤 조건으로 매칭됐는지>
+    • 메일 요지: <한 줄. 무엇이 / 언제부터 / 어떤 청구·비용 측면>
+    • 영향받는 프로젝트: <목록>   ← 조건 (A)일 때
+    • 감지된 키워드: <쉼표 구분>   ← 조건 (B)일 때
+
+    확인 부탁드립니다:
+    • 본 변경이 우리 조직 청구에 미치는 영향 추정
+    • 영향 프로젝트의 현재 사용량·비용 추세 (확인 가능하면)
+    • 권장 액션 (마이그레이션 / 최적화 / 모니터링 강화)
+```
+
+**mention 대상 정보**
+- 봇 표시명: `gcp-finops-agent` (Slack username: `gcpfinopsagent`)
+- Slack user ID: **`U0AP7558R70`** — mention syntax `<@U0AP7558R70>` 그대로 사용
+- 검증된 채널: `#테스트-채널` (`C0AQV00LHSB`)
+- **주의**: 평문 `@gcp-finops-agent` 또는 `@gcpfinopsagent`로 보내면 API 메시지에서 Slack이 username을 자동 변환하지 않아 **평문으로만 표시**되고 mention 알림이 가지 않습니다. 반드시 `<@USER_ID>` 형식 사용.
+
+**가드레일**
+
+- mention은 동일 thread당 **1건만** 발송. 같은 thread에 mention을 또 보내지 않음.
+- mention 댓글 발송이 실패해도 해당 thread는 정상 처리된 것으로 간주하고 `state.json`에 thread.id를 기록합니다. mention만 재시도하지 않음 (다음 실행 때 같은 thread를 다시 안 보내야 하므로).
+- 사용자 본인을 mention하거나, agent 외 다른 user/group을 mention하지 않음.
+
 ### 6. State 갱신
 
 ```json
